@@ -95,9 +95,26 @@ adb -s <serial> pull /data/app/.../base.apk ./suspeito.apk
 - **adb -a expõe a 5037 na rede.** Use só com a máquina dentro do segmento
   isolado; em WSL2 mirrored networking, prefira `ADB_SERVER_SOCKET=tcp:localhost:5037`.
 
+## Só preparar o WSL nas máquinas do time
+
+Se você só quer deixar o WSL2 pronto numa máquina (sem instalar o resto do
+toolkit de phone farm), use o script standalone `ativar-wsl.ps1`. É o que dá pra
+distribuir pro time rodar:
+
+```powershell
+# baixa e roda direto
+irm https://raw.githubusercontent.com/dmoraesrs/adb/main/ativar-wsl.ps1 -OutFile ativar-wsl.ps1
+powershell -ExecutionPolicy Bypass -File .\ativar-wsl.ps1
+```
+
+Ele habilita as features do WSL2, instala o Ubuntu e define o WSL2 como padrão.
+Se as features precisarem ser habilitadas, pede um reboot; rode de novo depois
+para concluir. É idempotente (se já estiver pronto, só mostra o estado).
+
 ## Estrutura
 
 ```
+ativar-wsl.ps1           # standalone: só ativa o WSL2 + Ubuntu (pro time)
 setup-windows.ps1        # instala tudo no Windows + provisiona o WSL
 wsl/provision.sh         # provisiona o Ubuntu do WSL (chamado pelo ps1)
 scripts/baseline-farm.sh # retrato de segurança das placas (CSV)
