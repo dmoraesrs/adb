@@ -16,8 +16,8 @@ apt-get install -y --no-install-recommends \
 
 # --- platform-tools do Google (mesma major do winget, evita mismatch) -----
 # Instalamos o zip oficial em /opt para casar exatamente com o adb server do
-# Windows. Se as versoes divergirem, o cliente reclama de "server version
-# doesn't match" e nao conecta no socket remoto.
+# Windows. Se as versões divergirem, o cliente reclama de "server version
+# doesn't match" e não conecta no socket remoto.
 echo "==> Instalando platform-tools (Google) em /opt"
 tmp="$(mktemp -d)"
 wget -q "https://dl.google.com/android/repository/platform-tools-latest-linux.zip" \
@@ -27,8 +27,8 @@ unzip -oq "$tmp/platform-tools.zip" -d /opt
 rm -rf "$tmp"
 
 # --- profile: PATH + ADB_SERVER_SOCKET apontando pro adb server do Windows -
-# WSL2 em NAT (padrao): o host Windows e o default gateway.
-# Se voce usa WSL2 mirrored networking, troque a linha do gateway por:
+# WSL2 em NAT (padrão): o host Windows é o default gateway.
+# Se você usa WSL2 mirrored networking, troque a linha do gateway por:
 #     export ADB_SERVER_SOCKET=tcp:localhost:5037
 profile="/etc/profile.d/adb-farm.sh"
 cat > "$profile" <<'EOF'
@@ -36,7 +36,7 @@ cat > "$profile" <<'EOF'
 export PATH="/opt/platform-tools:$PATH"
 
 # Aponta o cliente adb do WSL para o adb server rodando no Windows.
-# NAT (padrao): host = default gateway. Mirrored: troque por 'localhost'.
+# NAT (padrão): host = default gateway. Mirrored: troque por 'localhost'.
 if [ -z "${ADB_SERVER_SOCKET:-}" ]; then
     _win_host="$(ip route show default 2>/dev/null | awk '{print $3; exit}')"
     if [ -n "$_win_host" ]; then
@@ -47,10 +47,10 @@ fi
 EOF
 chmod 0644 "$profile"
 
-echo "==> Versao do adb no WSL:"
+echo "==> Versão do adb no WSL:"
 /opt/platform-tools/adb --version | head -1 || true
 
 echo ""
 echo "==> WSL provisionado."
-echo "    O ADB_SERVER_SOCKET sera configurado em cada novo shell (via profile.d)."
+echo "    O ADB_SERVER_SOCKET será configurado em cada novo shell (via profile.d)."
 echo "    Abra um novo shell WSL e rode: adb devices -l"

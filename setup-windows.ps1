@@ -1,38 +1,44 @@
-<#
+﻿<#
 .SYNOPSIS
     Deixa um Windows 100% pronto para operar uma phone farm via ADB.
 
 .DESCRIPTION
-    Instala e configura tudo o que e preciso para plugar o chassi de celulares
+    Instala e configura tudo o que é preciso para plugar o chassi de celulares
     e falar com as placas por ADB:
 
       - platform-tools (adb/fastboot) no Windows        [server + drivers]
       - scrcpy (espelho/controle de tela)               [Windows]
       - Universal ADB Driver (Windows enxergar as placas)
       - WSL2 + Ubuntu                                    [ambiente Linux]
-      - Dentro do WSL: platform-tools (mesma versao), nmap, jq, wget/unzip
+      - Dentro do WSL: platform-tools (mesma versão), nmap, jq, wget/unzip
       - ADB_SERVER_SOCKET no WSL apontando para o adb server do Windows
 
-    Idempotente: pode rodar de novo sem quebrar nada. Na primeira execucao,
+    Idempotente: pode rodar de novo sem quebrar nada. Na primeira execução,
     se o WSL precisar ser habilitado, o script pede um reboot; rode de novo
     depois do reboot para concluir o provisionamento do Ubuntu.
 
 .NOTES
     Rode num PowerShell comum (ele se auto-eleva para Admin).
-    Contexto de seguranca: mantenha esta maquina numa VLAN isolada. Veja o README.
+    Contexto de segurança: mantenha esta máquina numa VLAN isolada. Veja o README.
 #>
 
 [CmdletBinding()]
 param(
-    [switch]$SkipWsl,        # nao mexe no WSL (so ferramentas Windows)
-    [switch]$SkipDriver,     # nao instala o Universal ADB Driver
+    [switch]$SkipWsl,        # não mexe no WSL (só ferramentas Windows)
+    [switch]$SkipDriver,     # não instala o Universal ADB Driver
     [string]$Distro = "Ubuntu"
 )
 
 $ErrorActionPreference = "Stop"
 
+# Console em UTF-8 para os acentos aparecerem corretamente no Windows PowerShell
+try {
+    [Console]::OutputEncoding = [System.Text.Encoding]::UTF8
+    $OutputEncoding = [System.Text.Encoding]::UTF8
+} catch { }
+
 # ---------------------------------------------------------------------------
-# 0. Auto-elevacao para Administrador
+# 0. Auto-elevação para Administrador
 # ---------------------------------------------------------------------------
 $isAdmin = ([Security.Principal.WindowsPrincipal] `
     [Security.Principal.WindowsIdentity]::GetCurrent()
@@ -53,11 +59,11 @@ $RepoRoot = $PSScriptRoot
 $NeedReboot = $false
 
 # ---------------------------------------------------------------------------
-# 1. winget disponivel?
+# 1. winget disponível?
 # ---------------------------------------------------------------------------
 Write-Step "Verificando winget"
 if (-not (Get-Command winget -ErrorAction SilentlyContinue)) {
-    throw "winget nao encontrado. Atualize o 'App Installer' pela Microsoft Store e rode de novo."
+    throw "winget não encontrado. Atualize o 'App Installer' pela Microsoft Store e rode de novo."
 }
 Write-Ok "winget presente"
 
@@ -70,17 +76,17 @@ function Install-Winget($id, $nome) {
         --accept-source-agreements --accept-package-agreements 2>&1
     if ($LASTEXITCODE -eq 0) {
         Write-Ok "$nome instalado"
-    } elseif ($out -match "already installed|ja esta instalado|No available upgrade") {
-        Write-Ok "$nome ja estava instalado"
+    } elseif ($out -match "already installed|já está instalado|No available upgrade") {
+        Write-Ok "$nome já estava instalado"
     } else {
-        Write-Warn "winget retornou $LASTEXITCODE para $nome. Saida: $($out | Select-Object -Last 2)"
+        Write-Warn "winget retornou $LASTEXITCODE para $nome. Saída: $($out | Select-Object -Last 2)"
     }
 }
 
 Install-Winget "Google.PlatformTools" "Android platform-tools (adb)"
 Install-Winget "Genymobile.scrcpy"    "scrcpy"
 
-# Garante o platform-tools no PATH da maquina (winget as vezes nao propaga na sessao)
+# Garante o platform-tools no PATH da máquina (winget às vezes não propaga na sessão)
 $ptPath = "$env:LOCALAPPDATA\Microsoft\WinGet\Links"
 if (Test-Path "$ptPath\adb.exe") {
     $machinePath = [Environment]::GetEnvironmentVariable("Path", "Machine")
@@ -103,8 +109,8 @@ if (-not $SkipDriver) {
         Start-Process msiexec.exe -ArgumentList "/i `"$drvMsi`" /quiet /norestart" -Wait
         Write-Ok "Universal ADB Driver instalado"
     } catch {
-        Write-Warn "Nao consegui instalar o driver automaticamente: $($_.Exception.Message)"
-        Write-Warn "Baixe manualmente em https://adb.clockworkmod.com/ se alguma placa nao aparecer."
+        Write-Warn "Não consegui instalar o driver automaticamente: $($_.Exception.Message)"
+        Write-Warn "Baixe manualmente em https://adb.clockworkmod.com/ se alguma placa não aparecer."
     }
 } else {
     Write-Warn "Driver pulado (--SkipDriver)"
@@ -120,7 +126,7 @@ if (-not $SkipWsl) {
     $vmFeature  = Get-WindowsOptionalFeature -Online -FeatureName VirtualMachinePlatform -ErrorAction SilentlyContinue
 
     if ($wslFeature.State -ne "Enabled" -or $vmFeature.State -ne "Enabled") {
-        Write-Warn "WSL ainda nao habilitado. Habilitando features..."
+        Write-Warn "WSL ainda não habilitado. Habilitando features..."
         dism.exe /online /enable-feature /featurename:Microsoft-Windows-Subsystem-Linux /all /norestart | Out-Null
         dism.exe /online /enable-feature /featurename:VirtualMachinePlatform /all /norestart | Out-Null
         $NeedReboot = $true
@@ -132,14 +138,14 @@ if (-not $SkipWsl) {
 
         $distros = (wsl -l -q) -join "`n"
         if ($distros -notmatch [regex]::Escape($Distro)) {
-            Write-Step "Instalando distro $Distro (sem lancar setup interativo)"
+            Write-Step "Instalando distro $Distro (sem lançar setup interativo)"
             wsl --install -d $Distro --no-launch 2>&1 | Out-Null
             Start-Sleep -Seconds 5
         } else {
-            Write-Ok "Distro $Distro ja registrada"
+            Write-Ok "Distro $Distro já registrada"
         }
 
-        # Testa se o Ubuntu responde como root (nao exige criar usuario interativo)
+        # Testa se o Ubuntu responde como root (não exige criar usuário interativo)
         $probe = (wsl -d $Distro -u root -- echo ok 2>&1) -join ""
         if ($probe -match "ok") {
             Write-Step "Provisionando o WSL ($Distro)"
@@ -148,7 +154,7 @@ if (-not $SkipWsl) {
             if ($LASTEXITCODE -eq 0) { Write-Ok "WSL provisionado" }
             else { Write-Warn "provision.sh retornou $LASTEXITCODE" }
         } else {
-            Write-Warn "Ubuntu registrado mas ainda nao inicializou. Rode 'wsl -d $Distro -u root -- echo ok' e depois este script de novo."
+            Write-Warn "Ubuntu registrado mas ainda não inicializou. Rode 'wsl -d $Distro -u root -- echo ok' e depois este script de novo."
             $NeedReboot = $true
         }
     }
@@ -167,7 +173,7 @@ if ($NeedReboot) {
     Write-Host "############################################################" -ForegroundColor Yellow
 } else {
     Write-Host "############################################################" -ForegroundColor Green
-    Write-Host "  Maquina pronta. Proximos passos:"                         -ForegroundColor Green
+    Write-Host "  Máquina pronta. Próximos passos:"                         -ForegroundColor Green
     Write-Host "############################################################" -ForegroundColor Green
     Write-Host @"
 
@@ -179,13 +185,13 @@ if ($NeedReboot) {
 
   3. Noutro terminal, abra o WSL e liste as placas:
          wsl
-         adb devices -l          # ADB_SERVER_SOCKET ja vem configurado
+         adb devices -l          # ADB_SERVER_SOCKET já vem configurado
 
-  4. Tire o retrato de seguranca das placas antes de confiar nelas:
+  4. Tire o retrato de segurança das placas antes de confiar nelas:
          bash ~/adb/scripts/baseline-farm.sh
-     (ou aponte para o caminho onde voce clonou este repo)
+     (ou aponte para o caminho onde você clonou este repo)
 
-  LEMBRETE DE SEGURANCA: mantenha esta maquina e o chassi numa VLAN
+  LEMBRETE DE SEGURANÇA: mantenha esta máquina e o chassi numa VLAN
   isolada, com egress filtrado. Veja o README.md.
 
 "@ -ForegroundColor Gray

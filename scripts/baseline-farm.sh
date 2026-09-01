@@ -1,20 +1,20 @@
 #!/usr/bin/env bash
 #
 # baseline-farm.sh
-# Tira o retrato de seguranca de todas as placas Android da phone farm ANTES
+# Tira o retrato de segurança de todas as placas Android da phone farm ANTES
 # de confiar em qualquer uma. Para cada placa coleta: serial, modelo, ROM,
-# se o ADB over TCP (5555) ja vem ligado, se tem root, e se algum pacote bate
+# se o ADB over TCP (5555) já vem ligado, se tem root, e se algum pacote bate
 # com nome de firmware malicioso conhecido (BadBox/Triada/Adups etc).
 #
 # Uso (no WSL, com o adb server rodando no Windows):
 #   bash scripts/baseline-farm.sh
 #
-# Saida: farm-baseline-<timestamp>/baseline.csv  (+ detalhe por placa)
+# Saída: farm-baseline-<timestamp>/baseline.csv  (+ detalhe por placa)
 #
 set -uo pipefail
 
-# Aponta pro adb server do Windows. O profile.d ja exporta isso; a linha abaixo
-# e um fallback para NAT caso rode fora de um login shell.
+# Aponta pro adb server do Windows. O profile.d já exporta isso; a linha abaixo
+# é um fallback para NAT caso rode fora de um login shell.
 if [ -z "${ADB_SERVER_SOCKET:-}" ]; then
     export ADB_SERVER_SOCKET="tcp:$(ip route show default 2>/dev/null | awk '{print $3; exit}'):5037"
 fi
@@ -45,7 +45,7 @@ for s in "${SERIALS[@]}"; do
     rosec=$(g ro.secure);                  adbsec=$(g ro.adb.secure)
     tcp=$(g service.adb.tcp.port); [ -z "$tcp" ] && tcp=$(g persist.adb.tcp.port)
 
-    # root: su respondendo uid=0, ou binario su presente
+    # root: su respondendo uid=0, ou binário su presente
     if adb -s "$s" shell 'su -c id' 2>/dev/null | grep -q 'uid=0'; then
         root=SIM
     elif adb -s "$s" shell 'ls /system/xbin/su /system/bin/su 2>/dev/null' | grep -q su; then
@@ -60,7 +60,7 @@ for s in "${SERIALS[@]}"; do
     pkgs3=$(adb -s "$s" shell pm list packages -3 2>/dev/null | grep -c .)
     suspeitos=$(grep -Ei "$BAD" "$OUT/detalhe/$s.pkgs.txt" | paste -sd'|' -)
 
-    # conexoes de rede da placa (best-effort; netstat do toybox e limitado)
+    # conexões de rede da placa (best-effort; netstat do toybox é limitado)
     adb -s "$s" shell 'netstat -tunp 2>/dev/null || cat /proc/net/tcp' \
         > "$OUT/detalhe/$s.net.txt" 2>/dev/null
 
@@ -74,8 +74,8 @@ echo ">> pronto: $CSV"
 echo ">> detalhe por placa (pacotes + rede): $OUT/detalhe/"
 echo ""
 echo "Bandeiras vermelhas para revisar no CSV:"
-echo "  adb_tcp_port=5555     -> a 5555 ja vem ligada de fabrica"
-echo "  ro_adb_secure=0       -> ADB aberto sem autorizacao de chave"
+echo "  adb_tcp_port=5555     -> a 5555 já vem ligada de fábrica"
+echo "  ro_adb_secure=0       -> ADB aberto sem autorização de chave"
 echo "  build_type=userdebug  -> ROM de desenvolvimento/adulterada"
-echo "  root=SIM/BIN          -> root pre-integrado"
+echo "  root=SIM/BIN          -> root pré-integrado"
 echo "  suspeitos preenchido  -> puxe o APK e mande pro MobSF/VirusTotal"
