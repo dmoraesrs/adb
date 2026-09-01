@@ -1,0 +1,56 @@
+#!/usr/bin/env bash
+#
+# Provisiona o Ubuntu do WSL para operar a phone farm.
+# Roda como root (chamado pelo setup-windows.ps1) ou manualmente:
+#   sudo bash wsl/provision.sh
+#
+set -euo pipefail
+
+echo "==> Provisionando WSL para phone farm ADB"
+export DEBIAN_FRONTEND=noninteractive
+
+# --- pacotes base ---------------------------------------------------------
+apt-get update -y
+apt-get install -y --no-install-recommends \
+    ca-certificates wget unzip curl jq nmap coreutils gawk
+
+# --- platform-tools do Google (mesma major do winget, evita mismatch) -----
+# Instalamos o zip oficial em /opt para casar exatamente com o adb server do
+# Windows. Se as versoes divergirem, o cliente reclama de "server version
+# doesn't match" e nao conecta no socket remoto.
+echo "==> Instalando platform-tools (Google) em /opt"
+tmp="$(mktemp -d)"
+wget -q "https://dl.google.com/android/repository/platform-tools-latest-linux.zip" \
+    -O "$tmp/platform-tools.zip"
+rm -rf /opt/platform-tools
+unzip -oq "$tmp/platform-tools.zip" -d /opt
+rm -rf "$tmp"
+
+# --- profile: PATH + ADB_SERVER_SOCKET apontando pro adb server do Windows -
+# WSL2 em NAT (padrao): o host Windows e o default gateway.
+# Se voce usa WSL2 mirrored networking, troque a linha do gateway por:
+#     export ADB_SERVER_SOCKET=tcp:localhost:5037
+profile="/etc/profile.d/adb-farm.sh"
+cat > "$profile" <<'EOF'
+# adb-farm: ambiente da phone farm (gerado por wsl/provision.sh)
+export PATH="/opt/platform-tools:$PATH"
+
+# Aponta o cliente adb do WSL para o adb server rodando no Windows.
+# NAT (padrao): host = default gateway. Mirrored: troque por 'localhost'.
+if [ -z "${ADB_SERVER_SOCKET:-}" ]; then
+    _win_host="$(ip route show default 2>/dev/null | awk '{print $3; exit}')"
+    if [ -n "$_win_host" ]; then
+        export ADB_SERVER_SOCKET="tcp:${_win_host}:5037"
+    fi
+    unset _win_host
+fi
+EOF
+chmod 0644 "$profile"
+
+echo "==> Versao do adb no WSL:"
+/opt/platform-tools/adb --version | head -1 || true
+
+echo ""
+echo "==> WSL provisionado."
+echo "    O ADB_SERVER_SOCKET sera configurado em cada novo shell (via profile.d)."
+echo "    Abra um novo shell WSL e rode: adb devices -l"

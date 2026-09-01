@@ -1,0 +1,10 @@
+# saidas operacionais (nunca versionar)
+farm-baseline-*/
+*.csv
+*.pcap
+*.apk
+*.zip
+
+# temporarios
+*.log
+*.tmp
