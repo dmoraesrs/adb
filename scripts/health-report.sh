@@ -14,10 +14,14 @@
 #   bash scripts/health-report.sh
 #   ADB_SERVER_SOCKET=tcp:192.168.0.10:5037 bash scripts/health-report.sh   # via server remoto
 #
-set -euo pipefail
+# sem 'set -e': o retrato roda muitos comandos que retornam nao-zero de forma
+# legitima (grep sem match, testes falsos, getprop vazio) e nao devem abortar o HTML.
+set -uo pipefail
 
 TS="$(date +%Y%m%d-%H%M%S)"
-OUT="health-report-${TS}"
+# diretorio de saida opcional (default: atual). Ex: bash health-report.sh /mnt/c/Users/helpdesk
+BASE="${1:-.}"
+OUT="${BASE%/}/health-report-${TS}"
 HTML="${OUT}/report.html"
 mkdir -p "$OUT"
 
@@ -77,7 +81,7 @@ for s in $serials; do
 
   # ---- avaliacoes ----
   items=""; worst="ok"
-  bump(){ case "$1" in bad) worst="bad";; warn) [ "$worst" = ok ] && worst="warn";; esac; }
+  bump(){ case "$1" in bad) worst="bad";; warn) [ "$worst" = ok ] && worst="warn";; esac; return 0; }
   add(){ items="${items}<div class='it'><span class='k'>$1</span>$(badge "$2" "$3")</div>"; bump "$2"; }
 
   bt="${f[BTYPE]:-?}";       [ "$bt" = user ] && add "Build variant" ok "user (oficial)" || add "Build variant" bad "$bt (adulterada)"
@@ -101,7 +105,7 @@ for s in $serials; do
 
   case "$worst" in ok) N_OK=$((N_OK+1)); vc="ok";; warn) N_WARN=$((N_WARN+1)); vc="warn";; bad) N_BAD=$((N_BAD+1)); vc="bad";; esac
 
-  memt="${f[MEMT]:-0}"; upd="$(( ${f[UP]:-0} / 86400 ))"
+  memt="${f[MEMT]:-0}"; up="${f[UP]:-0}"; case "$up" in ''|*[!0-9]*) up=0;; esac; upd=$(( up / 86400 ))
   sub="$(echo "${f[MODEL]:-?} · Android ${f[REL]:-?} · ${f[PK3]:-?} apps de terceiros · storage ${f[DATA]:-n/d} · uptime ${upd}d" | esc)"
   CARDS="${CARDS}<div class='card ${vc}'><div class='hd'><div><b>$(echo "$s" | esc)</b><small>${sub}</small></div><span class='v ${vc}'>$(echo "$vc" | tr a-z A-Z)</span></div><div class='fp' title='fingerprint'>$(echo "${f[FP]:-}" | esc)</div><div class='its'>${items}</div></div>"
   unset f
