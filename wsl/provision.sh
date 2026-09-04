@@ -47,10 +47,18 @@ fi
 EOF
 chmod 0644 "$profile"
 
+# /etc/profile.d/*.sh so e carregado em LOGIN shells; o WSL costuma abrir um shell
+# interativo NAO-login, entao o ADB_SERVER_SOCKET ficava vazio e o adb subia um server
+# local sem USB (nao enxergava as placas). Garantimos o source tambem via /etc/bash.bashrc
+# (carregado por shell interativo), de forma idempotente.
+if ! grep -q 'profile.d/adb-farm.sh' /etc/bash.bashrc 2>/dev/null; then
+    printf '\n# phone farm: carrega o ambiente adb tambem em shell interativo (nao-login)\n[ -f /etc/profile.d/adb-farm.sh ] && . /etc/profile.d/adb-farm.sh\n' >> /etc/bash.bashrc
+fi
+
 echo "==> Versão do adb no WSL:"
 /opt/platform-tools/adb --version | head -1 || true
 
 echo ""
 echo "==> WSL provisionado."
-echo "    O ADB_SERVER_SOCKET será configurado em cada novo shell (via profile.d)."
-echo "    Abra um novo shell WSL e rode: adb devices -l"
+echo "    O ADB_SERVER_SOCKET é configurado em cada novo shell (login e interativo)."
+echo "    Abra um NOVO shell WSL e rode: adb devices -l"
