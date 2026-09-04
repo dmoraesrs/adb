@@ -125,6 +125,7 @@ scripts/check-all.sh            # auditoria estendida (saúde+validação+harden
 scripts/net-watch.sh            # monitora conexões das placas e sinaliza destinos suspeitos
 scripts/baseline-farm.sh        # retrato rápido de segurança das placas (CSV)
 scripts/install-scrcpy.sh       # instala o scrcpy (espelho/controle de tela das placas)
+scripts/open-screens.sh         # abre a tela de cada placa (scrcpy) em grade p/ operar/configurar (requer ambiente grafico)
 scripts/update-platform-tools.sh# atualiza o adb/fastboot para a versão mais recente do Google
 scripts/setup-cloudflared.sh    # acesso SSH remoto via Cloudflare Tunnel (atravessa CGNAT)
 scripts/setup-frpc.sh           # acesso remoto via FRP (SSH das placas), fechado ao seu IP
