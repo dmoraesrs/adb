@@ -120,6 +120,7 @@ wsl/provision.sh         # provisiona o Ubuntu do WSL (chamado pelo ps1)
 scripts/baseline-farm.sh # retrato de segurança das placas (CSV)
 scripts/health-report.sh # relatório HTML de saúde/segurança + referências oficiais (AOSP/Google/Samsung)
 scripts/install-scrcpy.sh# instala o scrcpy no Ubuntu/WSL (espelho de tela das placas)
+scripts/update-platform-tools.sh # atualiza o adb/fastboot (platform-tools) p/ a versão mais recente do Google
 ```
 
 ## Próximo passo
