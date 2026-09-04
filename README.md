@@ -124,6 +124,7 @@ scripts/update-platform-tools.sh # atualiza o adb/fastboot (platform-tools) p/ a
 scripts/net-watch.sh     # monitora conexões das placas e sinaliza destinos suspeitos (C2/backdoor)
 scripts/validate-farm.sh # PROCESSO completo: integridade + Magisk/apps/admins + rede -> veredito por placa (HTML+CSV)
 scripts/scan-apks.sh     # antivírus off-device: puxa os APKs das placas e escaneia (ClamAV / VirusTotal / Sophos do Windows)
+scripts/hardening-check.sh # hardening check: config de segurança do Android vs baseline CIS/AOSP -> score por placa (HTML)
 scripts/setup-frpc.sh    # acesso remoto via FRP (SSH do WSL + adb dos telefones), fechado ao seu IP
 frp/BASTION.md           # setup do servidor FRP (frps) no bastion + firewall restrito ao seu IP
 ```
