@@ -6,18 +6,12 @@
 # se o ADB over TCP (5555) já vem ligado, se tem root, e se algum pacote bate
 # com nome de firmware malicioso conhecido (BadBox/Triada/Adups etc).
 #
-# Uso (no WSL, com o adb server rodando no Windows):
+# Uso:
 #   bash scripts/baseline-farm.sh
 #
 # Saída: farm-baseline-<timestamp>/baseline.csv  (+ detalhe por placa)
 #
 set -uo pipefail
-
-# Aponta pro adb server do Windows. O profile.d já exporta isso; a linha abaixo
-# é um fallback para NAT caso rode fora de um login shell.
-if [ -z "${ADB_SERVER_SOCKET:-}" ]; then
-    export ADB_SERVER_SOCKET="tcp:$(ip route show default 2>/dev/null | awk '{print $3; exit}'):5037"
-fi
 
 OUT="farm-baseline-$(date +%Y%m%d-%H%M%S)"
 mkdir -p "$OUT/detalhe"
@@ -31,8 +25,8 @@ BAD='adups|fota\.|com\.rock|triada|hummingbird|systemcore|com\.system\.service|b
 mapfile -t SERIALS < <(adb devices | awk 'NR>1 && $2=="device"{print $1}')
 echo ">> ${#SERIALS[@]} placas online"
 if [ "${#SERIALS[@]}" -eq 0 ]; then
-    echo "!! Nenhuma placa 'device'. Confira: adb server no Windows (adb -a nodaemon server start)," \
-         "ADB_SERVER_SOCKET, fonte do chassi ligada e cabo USB."
+    echo "!! Nenhuma placa 'device'. Confira: 'adb devices -l', autorizacao da chave RSA," \
+         "grupo plugdev/udev (setup-linux.sh), fonte do chassi ligada e cabo USB."
     exit 1
 fi
 

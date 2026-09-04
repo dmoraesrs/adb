@@ -1,10 +1,7 @@
 #!/usr/bin/env bash
 #
-# install-scrcpy.sh - instala o scrcpy no Ubuntu/WSL para espelhar e controlar as placas
-# a partir do Linux (o setup-windows.ps1 ja instala o scrcpy no Windows via winget).
-#
-# No WSL o scrcpy fala com o adb server do Windows (ADB_SERVER_SOCKET, configurado pelo
-# wsl/provision.sh) e abre a janela via WSLg (Windows 11) ou um X server (Windows 10).
+# install-scrcpy.sh - instala o scrcpy na VM Ubuntu para espelhar e controlar as placas.
+# O scrcpy fala com o adb local e abre a janela no ambiente grafico da VM.
 #
 # Uso:
 #   bash scripts/install-scrcpy.sh
@@ -12,7 +9,7 @@
 #
 set -euo pipefail
 
-echo "==> Instalando scrcpy (Ubuntu/WSL)"
+echo "==> Instalando scrcpy (Ubuntu)"
 export DEBIAN_FRONTEND=noninteractive
 
 if command -v scrcpy >/dev/null 2>&1; then
@@ -26,26 +23,19 @@ fi
 
 echo ""
 echo "==> Checagens"
-# adb (vem do wsl/provision.sh em /opt/platform-tools)
+# adb (do setup-linux.sh / platform-tools do Google)
 if command -v adb >/dev/null 2>&1; then
   echo "[ok] adb: $(adb --version 2>/dev/null | head -1)"
 else
-  echo "[!!] adb ausente no PATH. Rode 'sudo bash wsl/provision.sh' primeiro."
+  echo "[!!] adb ausente no PATH. Rode 'sudo bash scripts/setup-linux.sh' primeiro."
 fi
-
-# aponta o adb para o server do Windows, se ainda nao estiver apontando
-if [ -z "${ADB_SERVER_SOCKET:-}" ] && [ -f /etc/profile.d/adb-farm.sh ]; then
-  # shellcheck disable=SC1091
-  . /etc/profile.d/adb-farm.sh || true
-fi
-echo "    ADB_SERVER_SOCKET=${ADB_SERVER_SOCKET:-<vazio> (o scrcpy usara o adb local)}"
 
 # display para a janela do scrcpy
 if [ -n "${WAYLAND_DISPLAY:-}${DISPLAY:-}" ]; then
-  echo "[ok] display disponivel (WSLg/X) -> a janela do scrcpy vai abrir"
+  echo "[ok] display disponivel -> a janela do scrcpy vai abrir"
 else
-  echo "[!!] sem DISPLAY. No Windows 11 o WSLg ja resolve (atualize o WSL: 'wsl --update')."
-  echo "     No Windows 10, instale um X server (ex: VcXsrv) e exporte DISPLAY."
+  echo "[!!] sem DISPLAY (VM sem ambiente grafico). Rode o scrcpy numa sessao grafica,"
+  echo "     ou use 'scrcpy --tcpip' a partir de uma maquina com tela."
 fi
 
 echo ""

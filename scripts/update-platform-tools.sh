@@ -4,12 +4,7 @@
 # dmtracedump, etc) para a versao mais recente do Google, em /opt/platform-tools.
 #
 # Fonte oficial: https://developer.android.com/tools/releases/platform-tools
-# (o wsl/provision.sh instala isso no setup inicial; use este script para ATUALIZAR depois.)
-#
-# IMPORTANTE: no WSL o adb roda como CLIENTE do adb server do Windows. As versoes do adb
-# no Windows e no WSL precisam ser IGUAIS, senao o cliente recusa com
-# "adb server version doesn't match". Ao atualizar aqui, atualize tambem no Windows
-# (winget upgrade Google.PlatformTools) para casar as versoes.
+# (o setup-linux.sh instala isso no setup inicial; use este script para ATUALIZAR depois.)
 #
 set -euo pipefail
 
@@ -43,19 +38,13 @@ echo "==> instalando..."
 unzip -oq "$tmp/pt.zip" -d /opt          # extrai criando /opt/platform-tools
 rm -rf "$tmp"
 
-# garante o PATH em shells futuros, sem duplicar o que o provision.sh ja faz
-if [ -f /etc/profile.d/adb-farm.sh ]; then
-  echo "    PATH ja e gerido por /etc/profile.d/adb-farm.sh (provision.sh)"
-else
-  grep -q '/opt/platform-tools' /etc/profile.d/platform-tools.sh 2>/dev/null || \
-    echo 'export PATH="/opt/platform-tools:$PATH"' > /etc/profile.d/platform-tools.sh
-fi
+# garante o /opt/platform-tools no PATH de shells futuros
+grep -q '/opt/platform-tools' /etc/profile.d/platform-tools.sh 2>/dev/null || \
+  echo 'export PATH="/opt/platform-tools:$PATH"' > /etc/profile.d/platform-tools.sh
 
 export PATH="/opt/platform-tools:$PATH"
 echo ""
 echo "==> nova versao adb:      $(/opt/platform-tools/adb --version | sed -n 1p)"
 echo "==> nova versao fastboot: $(/opt/platform-tools/fastboot --version 2>/dev/null | sed -n 1p)"
 echo ""
-echo "Abra um NOVO shell (ou: source /etc/profile.d/adb-farm.sh) e rode: adb version"
-echo "Lembrete: atualize tambem o Windows (winget upgrade Google.PlatformTools) para"
-echo "as versoes baterem, senao o cliente do WSL recusa com 'server version doesn't match'."
+echo "Abra um NOVO shell (ou: source /etc/profile.d/platform-tools.sh) e rode: adb version"

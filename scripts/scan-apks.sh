@@ -3,7 +3,7 @@
 # scan-apks.sh - "antivirus" OFF-DEVICE da phone farm.
 #
 # Puxa os APKs de terceiros de cada placa (via adb, sem root) e escaneia num ambiente
-# limpo (o WSL) com ClamAV offline e, opcionalmente, consulta o VirusTotal por hash.
+# limpo (a VM Ubuntu) com ClamAV offline e, opcionalmente, consulta o VirusTotal por hash.
 # Motivo de ser off-device: um aparelho rootado/Permissive nao e confiavel para rodar o
 # proprio AV (malware com root se esconde). Aqui os arquivos sao analisados fora dele.
 #
@@ -13,7 +13,7 @@
 #
 # Uso:
 #   bash scripts/scan-apks.sh [DIR_SAIDA]                 # so ClamAV
-#   VT_API_KEY=xxxxx bash scripts/scan-apks.sh /mnt/c/Users/helpdesk   # + VirusTotal
+#   VT_API_KEY=xxxxx bash scripts/scan-apks.sh ~/farm-audit   # + VirusTotal
 #
 set -uo pipefail
 
@@ -26,9 +26,7 @@ CSV="${OUT}/resumo.csv"
 CLAMLOG="${OUT}/clamav.log"
 mkdir -p "$APKS"
 
-# SKIP_CLAMAV=1 -> so PUXA os APKs (voce escaneia com o Sophos Endpoint do Windows).
-# Nesse caso passe DIR_SAIDA em /mnt/c/... para os arquivos caírem no filesystem do Windows;
-# o Sophos on-access pega ao escrever, ou faca "Scan with Sophos" na pasta (botao direito).
+# SKIP_CLAMAV=1 -> so PUXA os APKs (nao escaneia); util pra depois subir no MobSF/VirusTotal.
 SKIP_CLAMAV="${SKIP_CLAMAV:-0}"
 
 serials="$(adb devices | awk 'NR>1 && $2=="device"{print $1}')"
@@ -51,12 +49,12 @@ for s in $serials; do
   echo "  ${s}: $(ls "$APKS/$s"/*.apk 2>/dev/null | wc -l) apk(s)" | tee -a "$REPORT"
 done
 
-# 2) ClamAV (offline) - pulado se SKIP_CLAMAV=1 (voce vai usar o Sophos do Windows)
+# 2) ClamAV (offline) - pulado se SKIP_CLAMAV=1 (so puxa os APKs)
 echo "" | tee -a "$REPORT"
 : > "$CLAMLOG"
 if [ "$SKIP_CLAMAV" = 1 ]; then
-  echo "==> ClamAV pulado (SKIP_CLAMAV=1). Escaneie a pasta abaixo com o Sophos Endpoint (Windows):" | tee -a "$REPORT"
-  echo "    $(wslpath -w "$APKS" 2>/dev/null || echo "$APKS")" | tee -a "$REPORT"
+  echo "==> ClamAV pulado (SKIP_CLAMAV=1). APKs salvos para analise manual em:" | tee -a "$REPORT"
+  echo "    $APKS" | tee -a "$REPORT"
 else
   if ! command -v clamscan >/dev/null 2>&1; then
     echo "==> instalando ClamAV..." | tee -a "$REPORT"
@@ -86,7 +84,7 @@ for s in $serials; do
     pkg="$(basename "$apk" .apk)"
     sha="$(sha256sum "$apk" | awk '{print $1}')"
     sz="$(du -h "$apk" | awk '{print $1}')"
-    cl="limpo"; [ "$SKIP_CLAMAV" = 1 ] && cl="(via Sophos)"; grep -q "${apk}:" "$CLAMLOG" 2>/dev/null && cl="INFECTADO"
+    cl="limpo"; [ "$SKIP_CLAMAV" = 1 ] && cl="(nao escaneado)"; grep -q "${apk}:" "$CLAMLOG" 2>/dev/null && cl="INFECTADO"
     vt="-"
     if [ -n "$VT" ]; then
       if [ -z "${seen[$sha]:-}" ]; then

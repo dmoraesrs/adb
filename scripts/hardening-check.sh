@@ -6,7 +6,7 @@
 # relatorio HTML com cada item PASS/FAIL/WARN, o valor lido, o esperado e a referencia.
 #
 # Uso:
-#   bash scripts/hardening-check.sh [DIR_SAIDA]      # ex: /mnt/c/Users/helpdesk
+#   bash scripts/hardening-check.sh [DIR_SAIDA]      # ex: ~/farm-audit
 #
 set -uo pipefail
 

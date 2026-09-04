@@ -1,84 +1,80 @@
-# adb - setup de estação para phone farm
+# adb - estação Ubuntu para phone farm
 
-Deixa um **Windows padrão 100% pronto** para plugar um chassi de phone farm
-(várias placas Android num hub USB) e falar com as placas por **ADB**, com o
-ambiente Linux rodando por cima via **WSL2**.
+Deixa uma **VM Ubuntu/Linux 100% pronta** para plugar um chassi de phone farm
+(várias placas Android num hub USB) e falar com as placas por **ADB** direto pelo
+USB. Sem Windows, sem WSL: o adb conversa com o USB da própria máquina.
 
 O foco aqui é **operação segura**: antes de confiar em qualquer placa, o toolkit
 tira um retrato de segurança de cada uma (ROM, root, estado da porta 5555,
-pacotes suspeitos), porque hardware genérico de "group control" costuma vir com
-ADB aberto, root pré-integrado e, em muitos casos, firmware malicioso de fábrica
-(famílias BadBox/Triada/Adups) que **sobrevive a factory reset**.
+pacotes suspeitos, antivírus nos APKs, portas expostas), porque hardware genérico
+de "group control" costuma vir com ADB aberto, root pré-integrado e, em muitos
+casos, firmware malicioso de fábrica (famílias BadBox/Triada/Adups) que
+**sobrevive a factory reset**.
 
 ## O que o setup instala
 
-No **Windows** (roda o adb server e os drivers USB):
+Na **VM Ubuntu/Debian** (`setup-linux.sh`):
 
-- `platform-tools` (adb/fastboot) via winget
-- `scrcpy` (espelho/controle de tela) via winget
-- Universal ADB Driver (para o Windows reconhecer as placas)
-
-No **WSL2 / Ubuntu** (onde você desenvolve e roda os scripts):
-
-- `platform-tools` do Google, **mesma versão** do Windows (evita mismatch de server)
-- `nmap`, `jq`, `wget`, `unzip`, `curl`
-- `ADB_SERVER_SOCKET` já configurado apontando para o adb server do Windows
+- `platform-tools` do Google (adb/fastboot), versão oficial mais recente
+- udev rules do Android + grupo `plugdev` (enxergar as placas por USB sem root)
+- `nmap`, `clamav`, `jq`, `scrcpy`, `curl`/`wget`/`unzip`
 
 ## Como usar
 
-1. Clone este repo no Windows e rode o setup num PowerShell (ele se auto-eleva):
+1. Clone o repo na VM e rode o setup (instala tudo):
 
-   ```powershell
+   ```bash
    git clone https://github.com/dmoraesrs/adb.git
    cd adb
-   .\setup-windows.ps1
+   sudo bash scripts/setup-linux.sh
    ```
 
-   Se o WSL ainda não estava habilitado, o script pede um **reboot**. Reinicie e
-   rode `.\setup-windows.ps1` de novo para concluir o provisionamento do Ubuntu.
+   Depois **relogue a sessão** (ou `newgrp plugdev`) para o acesso USB valer sem `sudo`.
 
-2. Ligue a **fonte do chassi** e plugue o **cabo USB** no PC.
-
-3. Suba o adb server no **Windows**:
-
-   ```powershell
-   adb kill-server
-   adb -a nodaemon server start
-   ```
-
-4. Abra o **WSL** e liste as placas:
+2. Ligue a **fonte do chassi**, plugue o **cabo USB** e liste as placas:
 
    ```bash
-   wsl
-   adb devices -l        # deve listar todas as placas
+   adb devices -l          # deve listar todas as placas
    ```
 
-5. Tire o baseline de segurança antes de confiar nas placas:
+   Se aparecer `unauthorized`, autorize a chave RSA na placa. Se `no permissions`,
+   confira o grupo `plugdev` e as udev rules (rode o `setup-linux.sh` de novo e relogue).
+
+3. Rode a auditoria completa num comando:
 
    ```bash
-   bash scripts/baseline-farm.sh
+   sudo bash scripts/farm-scan.sh ~/farm-audit
    ```
 
-   Gera `farm-baseline-<timestamp>/baseline.csv` com uma linha por placa.
+   Instala o que faltar, **valida** as placas, passa **antivírus** nos APKs e
+   **escaneia as portas** de cada telefone, gerando `~/farm-audit/farm-scan-*/index.html`.
 
-### Lendo o baseline
+## Auditoria de segurança
 
-| Coluna | Bandeira vermelha |
-|--------|-------------------|
-| `adb_tcp_port=5555` | a porta 5555 (shell root sem senha) já vem ligada de fábrica |
+| Script | O que faz |
+|--------|-----------|
+| `farm-scan.sh` | **Tudo num comando**: instala + valida + antivírus + portas -> `index.html` consolidado |
+| `validate-farm.sh` | Integridade + root/Magisk + apps de terceiros + device admins -> veredito por placa |
+| `scan-apks.sh` | Antivírus off-device: puxa os APKs e escaneia (ClamAV; +VirusTotal com `VT_API_KEY`) |
+| `port-scan.sh` | Portas em LISTEN + 5555/adb-tcp + nmap externo -> superfície de rede exposta |
+| `hardening-check.sh` | Config de segurança do Android vs baseline CIS/AOSP -> score por placa |
+| `health-report.sh` | Saúde/identidade: Verified Boot, SELinux, patch, bateria/storage |
+| `check-all.sh` | Auditoria estendida (saúde + validação + hardening + antivírus + rede) |
+| `net-watch.sh` | Monitora conexões das placas e sinaliza destinos suspeitos (C2/backdoor) |
+| `baseline-farm.sh` | Retrato rápido de segurança das placas em CSV |
+
+### Bandeiras vermelhas
+
+| Sinal | Risco |
+|-------|-------|
+| porta `5555` em LISTEN | shell root sem senha na rede (vetor dos worms ADB.Miner/Fbot) |
 | `ro_adb_secure=0` / `ro_secure=0` | ADB aberto sem autorização de chave |
 | `build_type=userdebug`/`eng` ou `debuggable=1` | ROM de desenvolvimento/adulterada |
-| `root=SIM`/`BIN` | root pré-integrado |
-| `suspeitos` preenchido | pacote com nome de firmware malicioso conhecido |
-| `patch` antigo | sem atualização de segurança há anos |
-
-Para pacote suspeito, puxe o APK e mande pro scanner:
-
-```bash
-adb -s <serial> shell pm path com.pacote.suspeito
-adb -s <serial> pull /data/app/.../base.apk ./suspeito.apk
-# suba suspeito.apk no MobSF (local) ou no VirusTotal
-```
+| `root=SIM` / `su` presente / Magisk | root pré-integrado, superfície total |
+| SELinux `Permissive` | proteção do kernel desligada |
+| bootloader unlocked / Verified Boot `orange` | firmware pode ter sido trocado |
+| pacote suspeito / detecção ClamAV | app com nome de firmware malicioso conhecido |
+| patch antigo | sem atualização de segurança há anos |
 
 ## Segurança (leia antes de ligar na rede)
 
@@ -91,49 +87,53 @@ adb -s <serial> pull /data/app/.../base.apk ./suspeito.apk
 - **Placa não confiável não guarda credencial real.** Até reflashar com ROM
   limpa, trate cada placa como comprometida.
 - **Factory reset não limpa** firmware backdoor tipo BadBox/Triada. A única
-  remediação real é reflash com ROM stock oficial ou AOSP que você mesmo baixou.
-- **adb -a expõe a 5037 na rede.** Use só com a máquina dentro do segmento
-  isolado; em WSL2 mirrored networking, prefira `ADB_SERVER_SOCKET=tcp:localhost:5037`.
+  remediação real é reflash com ROM stock oficial (Odin/heimdall) ou AOSP que
+  você mesmo baixou.
 
-## Só preparar o WSL nas máquinas do time
+## Acesso remoto (SSH pela internet, atravessa CGNAT)
 
-Se você só quer deixar o WSL2 pronto numa máquina (sem instalar o resto do
-toolkit de phone farm), use o script standalone `ativar-wsl.ps1`. É o que dá pra
-distribuir pro time rodar:
+A VM está atrás de ADSL/CGNAT (sem IP público). Para chegar nela por SSH sem
+abrir porta no roteador, use o **Cloudflare Tunnel**:
 
-```powershell
-# baixa e roda direto
-irm https://raw.githubusercontent.com/dmoraesrs/adb/main/ativar-wsl.ps1 -OutFile ativar-wsl.ps1
-powershell -ExecutionPolicy Bypass -File .\ativar-wsl.ps1
+```bash
+sudo bash scripts/setup-cloudflared.sh farm.tilabs.com.br
 ```
 
-Ele habilita as features do WSL2, instala o Ubuntu e define o WSL2 como padrão.
-Se as features precisarem ser habilitadas, pede um reboot; rode de novo depois
-para concluir. É idempotente (se já estiver pronto, só mostra o estado).
+Ele instala o `cloudflared` + `sshd`, autentica na Cloudflare, cria o túnel,
+**cria o registro DNS** e sobe como serviço systemd (já inicia e reconecta no boot).
+Depois, proteja o hostname no **Zero Trust Access** com o seu e-mail (1 passo no
+painel) para o SSH não ficar público. Conectar da sua máquina:
+
+```bash
+ssh -o ProxyCommand="cloudflared access ssh --hostname %h" USUARIO@farm.tilabs.com.br
+```
+
+Alternativa por bastion com IP público: `setup-frpc.sh` (+ `frp/BASTION.md`),
+fechado ao seu IP no firewall.
 
 ## Estrutura
 
 ```
-ativar-wsl.ps1           # standalone: só ativa o WSL2 + Ubuntu (pro time)
-setup-windows.ps1        # instala tudo no Windows + provisiona o WSL
-wsl/provision.sh         # provisiona o Ubuntu do WSL (chamado pelo ps1)
-scripts/baseline-farm.sh # retrato de segurança das placas (CSV)
-scripts/health-report.sh # relatório HTML de saúde/segurança + referências oficiais (AOSP/Google/Samsung)
-scripts/install-scrcpy.sh# instala o scrcpy no Ubuntu/WSL (espelho de tela das placas)
-scripts/update-platform-tools.sh # atualiza o adb/fastboot (platform-tools) p/ a versão mais recente do Google
-scripts/net-watch.sh     # monitora conexões das placas e sinaliza destinos suspeitos (C2/backdoor)
-scripts/validate-farm.sh # PROCESSO completo: integridade + Magisk/apps/admins + rede -> veredito por placa (HTML+CSV)
-scripts/scan-apks.sh     # antivírus off-device: puxa os APKs das placas e escaneia (ClamAV / VirusTotal / Sophos do Windows)
-scripts/hardening-check.sh # hardening check: config de segurança do Android vs baseline CIS/AOSP -> score por placa (HTML)
-scripts/check-all.sh     # AUDITORIA completa num comando: roda saúde+validação+hardening+antivírus(+rede) e gera index.html consolidado
-scripts/setup-frpc.sh    # acesso remoto via FRP (SSH do WSL + adb dos telefones), fechado ao seu IP
-scripts/setup-cloudflared.sh # acesso remoto via Cloudflare Tunnel (SSH sem VM/IP público; atravessa CGNAT)
-frp/BASTION.md           # setup do servidor FRP (frps) no bastion + firewall restrito ao seu IP
+scripts/setup-linux.sh          # prepara a VM Ubuntu (adb Google + udev + deps)
+scripts/farm-scan.sh            # TUDO num comando: instala + valida + antivírus + portas -> index.html
+scripts/validate-farm.sh        # integridade + Magisk/apps/admins -> veredito por placa (HTML+CSV)
+scripts/scan-apks.sh            # antivírus off-device dos APKs (ClamAV / VirusTotal)
+scripts/port-scan.sh            # portas em LISTEN + 5555/adb-tcp + nmap externo (HTML+CSV)
+scripts/hardening-check.sh      # config de segurança do Android vs CIS/AOSP -> score por placa
+scripts/health-report.sh        # relatório HTML de saúde/identidade + referências oficiais
+scripts/check-all.sh            # auditoria estendida (saúde+validação+hardening+antivírus+rede)
+scripts/net-watch.sh            # monitora conexões das placas e sinaliza destinos suspeitos
+scripts/baseline-farm.sh        # retrato rápido de segurança das placas (CSV)
+scripts/install-scrcpy.sh       # instala o scrcpy (espelho/controle de tela das placas)
+scripts/update-platform-tools.sh# atualiza o adb/fastboot para a versão mais recente do Google
+scripts/setup-cloudflared.sh    # acesso SSH remoto via Cloudflare Tunnel (atravessa CGNAT)
+scripts/setup-frpc.sh           # acesso remoto via FRP (SSH das placas), fechado ao seu IP
+frp/BASTION.md                  # setup do servidor FRP (frps) no bastion + firewall restrito
 ```
 
 ## Próximo passo
 
-Com o baseline na mão, o próximo bloco é a **app de gerência** (controlar e
-automatizar as placas sem o software chinês de origem desconhecida). Base
-recomendada: DeviceFarmer/STF ou `@devicefarmer/adbkit` (Node), com `scrcpy`
-para tela e `Appium` para automação.
+Com a farm auditada e o acesso remoto no ar, o próximo bloco é a **app de
+gerência** (controlar e automatizar as placas sem o software chinês de origem
+desconhecida). Base recomendada: DeviceFarmer/STF ou `@devicefarmer/adbkit`
+(Node), com `scrcpy` para tela e `Appium` para automação.

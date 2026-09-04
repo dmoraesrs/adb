@@ -19,7 +19,7 @@
 set -uo pipefail
 
 TS="$(date +%Y%m%d-%H%M%S)"
-# diretorio de saida opcional (default: atual). Ex: bash health-report.sh /mnt/c/Users/helpdesk
+# diretorio de saida opcional (default: atual). Ex: bash health-report.sh ~/farm-audit
 BASE="${1:-.}"
 OUT="${BASE%/}/health-report-${TS}"
 HTML="${OUT}/report.html"
@@ -177,4 +177,4 @@ HTMLHEAD
 echo ""
 echo ">> pronto: $HTML"
 echo ">> resumo: ${TOT} placas | OK=${N_OK} | Atencao=${N_WARN} | Critico=${N_BAD}"
-echo ">> abra o HTML no navegador (no WSL: 'explorer.exe $HTML' ou 'wslview $HTML')"
+echo ">> abra o HTML no navegador (ex: xdg-open $HTML)"

@@ -14,7 +14,7 @@
 # NAO precisa de root. So getprop/dumpsys/pm/settings/ls via adb shell.
 #
 # Uso:
-#   bash scripts/validate-farm.sh [DIR_SAIDA]      # ex: /mnt/c/Users/helpdesk
+#   bash scripts/validate-farm.sh [DIR_SAIDA]      # ex: ~/farm-audit
 #
 set -uo pipefail
 

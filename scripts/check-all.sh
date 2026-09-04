@@ -7,25 +7,16 @@
 #   1) health-report.sh    saude/integridade
 #   2) validate-farm.sh    integridade + Magisk/apps/admins  -> veredito por placa
 #   3) hardening-check.sh  config de seguranca vs CIS/AOSP    -> score por placa
-#   4) scan-apks.sh        antivirus dos APKs (ClamAV; ou Sophos com SKIP_CLAMAV=1)
+#   4) scan-apks.sh        antivirus dos APKs (ClamAV; SKIP_CLAMAV=1 so puxa os APKs)
 #   5) net-watch.sh        (opcional) conexoes/C2  -> defina NET_SECS>0 para ativar
 #
 # Uso:
-#   bash scripts/check-all.sh [DIR_SAIDA]                         # tudo com ClamAV
-#   VT_API_KEY=xxx bash scripts/check-all.sh /mnt/c/Users/helpdesk
-#   SKIP_CLAMAV=1 bash scripts/check-all.sh /mnt/c/Users/helpdesk  # APKs p/ o Sophos do Windows
-#   NET_SECS=60 bash scripts/check-all.sh /mnt/c/Users/helpdesk    # inclui o monitor de rede
+#   bash scripts/check-all.sh [DIR_SAIDA]                    # tudo com ClamAV
+#   VT_API_KEY=xxx bash scripts/check-all.sh ~/farm-audit
+#   SKIP_CLAMAV=1 bash scripts/check-all.sh ~/farm-audit     # so puxa os APKs (sem escanear)
+#   NET_SECS=60 bash scripts/check-all.sh ~/farm-audit       # inclui o monitor de rede
 #
 set -uo pipefail
-
-# SO no WSL o adb e cliente do server do Windows; em Linux puro o adb ve o USB direto (nao mexe).
-if grep -qi microsoft /proc/version 2>/dev/null && [ -z "${ADB_SERVER_SOCKET:-}" ]; then
-  [ -f /etc/profile.d/adb-farm.sh ] && . /etc/profile.d/adb-farm.sh
-  if [ -z "${ADB_SERVER_SOCKET:-}" ]; then
-    _w="$(ip route show default 2>/dev/null | awk '{print $3; exit}')"
-    [ -n "$_w" ] && export ADB_SERVER_SOCKET="tcp:${_w}:5037"; unset _w
-  fi
-fi
 
 SCR="$(cd "$(dirname "$0")" && pwd)"
 TS="$(date +%Y%m%d-%H%M%S)"
@@ -37,8 +28,8 @@ mkdir -p "$AUDIT"
 serials="$(adb devices | awk 'NR>1 && $2=="device"{print $1}')"
 NDEV="$(printf '%s\n' "$serials" | grep -c '[^[:space:]]')"
 if [ "${NDEV:-0}" -eq 0 ] 2>/dev/null; then
-  echo "Nenhuma placa em 'device'. adb server inacessivel? ADB_SERVER_SOCKET='${ADB_SERVER_SOCKET:-vazio}'."
-  echo "No Windows: 'adb -a nodaemon server start' + firewall 5037. No WSL: 'adb devices -l' deve listar."
+  echo "Nenhuma placa em 'device'. Rode 'adb devices -l'. Se aparecer 'unauthorized', autorize a"
+  echo "chave RSA na placa; se 'no permissions', confira o grupo plugdev e as udev rules (setup-linux.sh)."
   exit 1
 fi
 echo "== check-all: ${NDEV} placa(s) -> ${AUDIT} =="
@@ -102,7 +93,7 @@ td a{color:#1C6FB5;font-weight:700}.na{color:var(--muted)}
 <tr><td>Saude / integridade</td><td>identidade, Verified Boot, SELinux, patch, bateria/storage</td><td>$(link "$H_HTML")</td></tr>
 <tr><td>Validacao de seguranca</td><td>root/Magisk, apps de terceiros, device admins, /data/local/tmp -> veredito</td><td>$(link "$V_HTML")</td></tr>
 <tr><td>Hardening (CIS/AOSP)</td><td>config de seguranca do Android vs baseline -> score por placa</td><td>$(link "$K_HTML")</td></tr>
-<tr><td>Antivirus (APKs)</td><td>APKs puxados e escaneados (ClamAV/VirusTotal/Sophos)</td><td>$([ -n "$S_TXT" ] && echo "<a href='$(rel "$S_TXT")'>abrir</a>" || echo "<span class='na'>nao gerado</span>")</td></tr>
+<tr><td>Antivirus (APKs)</td><td>APKs puxados e escaneados (ClamAV/VirusTotal)</td><td>$([ -n "$S_TXT" ] && echo "<a href='$(rel "$S_TXT")'>abrir</a>" || echo "<span class='na'>nao gerado</span>")</td></tr>
 <tr><td>Rede / C2</td><td>conexoes das placas x destinos suspeitos${netsusp:+ (susp: ${netsusp})}</td><td>$([ -n "$N_TXT" ] && echo "<a href='$(rel "$N_TXT")'>abrir</a>" || echo "<span class='na'>pulado</span>")</td></tr>
 </tbody></table>
 <p class="foot">Planilhas (.csv) e detalhes por placa dentro de cada subpasta. Referencias oficiais em cada relatorio. Retrato pontual, sem root; nao substitui analise forense de firmware.</p>
@@ -115,4 +106,4 @@ echo " AUDITORIA CONCLUIDA"
 echo " indice:   $INDEX"
 echo " resumo:   ${NDEV} placas | criticas=${crit} atencao=${aten} ok=${okv} | hardening~${hscore}/100 | antivirus=${avhit} deteccoes"
 echo "======================================================================"
-command -v wslpath >/dev/null 2>&1 && echo " abrir no Windows: explorer.exe \"$(wslpath -w "$INDEX")\""
+command -v xdg-open >/dev/null 2>&1 && echo " abrir: xdg-open \"$INDEX\""
