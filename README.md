@@ -122,6 +122,8 @@ scripts/health-report.sh # relatório HTML de saúde/segurança + referências o
 scripts/install-scrcpy.sh# instala o scrcpy no Ubuntu/WSL (espelho de tela das placas)
 scripts/update-platform-tools.sh # atualiza o adb/fastboot (platform-tools) p/ a versão mais recente do Google
 scripts/net-watch.sh     # monitora conexões das placas e sinaliza destinos suspeitos (C2/backdoor)
+scripts/setup-frpc.sh    # acesso remoto via FRP (SSH do WSL + adb dos telefones), fechado ao seu IP
+frp/BASTION.md           # setup do servidor FRP (frps) no bastion + firewall restrito ao seu IP
 ```
 
 ## Próximo passo
