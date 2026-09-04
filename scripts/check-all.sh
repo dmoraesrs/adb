@@ -18,11 +18,13 @@
 #
 set -uo pipefail
 
-# garante que o adb aponta pro server do Windows (o profile pode nao ter carregado neste shell)
-if [ -z "${ADB_SERVER_SOCKET:-}" ] && [ -f /etc/profile.d/adb-farm.sh ]; then . /etc/profile.d/adb-farm.sh; fi
-if [ -z "${ADB_SERVER_SOCKET:-}" ]; then
-  _w="$(ip route show default 2>/dev/null | awk '{print $3; exit}')"
-  [ -n "$_w" ] && export ADB_SERVER_SOCKET="tcp:${_w}:5037"; unset _w
+# SO no WSL o adb e cliente do server do Windows; em Linux puro o adb ve o USB direto (nao mexe).
+if grep -qi microsoft /proc/version 2>/dev/null && [ -z "${ADB_SERVER_SOCKET:-}" ]; then
+  [ -f /etc/profile.d/adb-farm.sh ] && . /etc/profile.d/adb-farm.sh
+  if [ -z "${ADB_SERVER_SOCKET:-}" ]; then
+    _w="$(ip route show default 2>/dev/null | awk '{print $3; exit}')"
+    [ -n "$_w" ] && export ADB_SERVER_SOCKET="tcp:${_w}:5037"; unset _w
+  fi
 fi
 
 SCR="$(cd "$(dirname "$0")" && pwd)"
