@@ -127,6 +127,7 @@ scripts/scan-apks.sh     # antivírus off-device: puxa os APKs das placas e esca
 scripts/hardening-check.sh # hardening check: config de segurança do Android vs baseline CIS/AOSP -> score por placa (HTML)
 scripts/check-all.sh     # AUDITORIA completa num comando: roda saúde+validação+hardening+antivírus(+rede) e gera index.html consolidado
 scripts/setup-frpc.sh    # acesso remoto via FRP (SSH do WSL + adb dos telefones), fechado ao seu IP
+scripts/setup-cloudflared.sh # acesso remoto via Cloudflare Tunnel (SSH sem VM/IP público; atravessa CGNAT)
 frp/BASTION.md           # setup do servidor FRP (frps) no bastion + firewall restrito ao seu IP
 ```
 
