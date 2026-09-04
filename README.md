@@ -118,6 +118,8 @@ ativar-wsl.ps1           # standalone: só ativa o WSL2 + Ubuntu (pro time)
 setup-windows.ps1        # instala tudo no Windows + provisiona o WSL
 wsl/provision.sh         # provisiona o Ubuntu do WSL (chamado pelo ps1)
 scripts/baseline-farm.sh # retrato de segurança das placas (CSV)
+scripts/health-report.sh # relatório HTML de saúde/segurança + referências oficiais (AOSP/Google/Samsung)
+scripts/install-scrcpy.sh# instala o scrcpy no Ubuntu/WSL (espelho de tela das placas)
 ```
 
 ## Próximo passo
