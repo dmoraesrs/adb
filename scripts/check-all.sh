@@ -18,6 +18,13 @@
 #
 set -uo pipefail
 
+# garante que o adb aponta pro server do Windows (o profile pode nao ter carregado neste shell)
+if [ -z "${ADB_SERVER_SOCKET:-}" ] && [ -f /etc/profile.d/adb-farm.sh ]; then . /etc/profile.d/adb-farm.sh; fi
+if [ -z "${ADB_SERVER_SOCKET:-}" ]; then
+  _w="$(ip route show default 2>/dev/null | awk '{print $3; exit}')"
+  [ -n "$_w" ] && export ADB_SERVER_SOCKET="tcp:${_w}:5037"; unset _w
+fi
+
 SCR="$(cd "$(dirname "$0")" && pwd)"
 TS="$(date +%Y%m%d-%H%M%S)"
 BASE="${1:-.}"
@@ -26,8 +33,12 @@ NET_SECS="${NET_SECS:-0}"
 mkdir -p "$AUDIT"
 
 serials="$(adb devices | awk 'NR>1 && $2=="device"{print $1}')"
-NDEV="$(echo "$serials" | grep -c . || echo 0)"
-[ "$NDEV" -eq 0 ] && { echo "Nenhuma placa em 'device'. Confira o adb server / ADB_SERVER_SOCKET."; exit 1; }
+NDEV="$(printf '%s\n' "$serials" | grep -c '[^[:space:]]')"
+if [ "${NDEV:-0}" -eq 0 ] 2>/dev/null; then
+  echo "Nenhuma placa em 'device'. adb server inacessivel? ADB_SERVER_SOCKET='${ADB_SERVER_SOCKET:-vazio}'."
+  echo "No Windows: 'adb -a nodaemon server start' + firewall 5037. No WSL: 'adb devices -l' deve listar."
+  exit 1
+fi
 echo "== check-all: ${NDEV} placa(s) -> ${AUDIT} =="
 
 step(){ echo ""; echo ">>> $1"; shift; "$@" >/dev/null 2>&1 && echo "    ok" || echo "    [!] etapa retornou erro (segue)"; }
